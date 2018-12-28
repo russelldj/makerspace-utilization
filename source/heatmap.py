@@ -15,7 +15,7 @@ from PIL import Image
 This script should take in the json results of running openpose (TODO link to openpose) and a refrence frame and and output a heatmap or scatter plot in floor space.
 """
 
-REF_IMAGE_FNAME = "/home/david/dev/makerspace-utilization/data/DOWNSAMPLED_test_video_2018-12-17/room.jpg"
+REF_IMAGE_FNAME = "data/DOWNSAMPLED_test_video_2018-12-17/room.jpg"
 
 def parse_args():
     parser = argparse.ArgumentParser()
