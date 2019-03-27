@@ -14,17 +14,20 @@ from PIL import Image
 """
 This script should take in the json results of running openpose (TODO link to openpose) and a refrence frame and and output a heatmap or scatter plot in floor space.
 """
-
+JSON_FOLDER="data/DOWNSAMPLED_test_video_2018-12-17/json"
 REF_IMAGE_FNAME = "data/DOWNSAMPLED_test_video_2018-12-17/room.jpg"
+OVERHEAD_IMAGE_FNAME = "data/Makerspace_test/Makerspace.PNG"
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json-folder")
-    parser.add_argument("--refrence-image")
+    parser.add_argument("--json-folder", help="The path to the folder of openpose jsons", default=JSON_FOLDER)
+    parser.add_argument("--refrence-image", help="An image of the space", default=REF_IMAGE_FNAME)
+    parser.add_argument("--overhead-image", help="The floorplan of your space", default=OVERHEAD_IMAGE_FNAME)
+    parser.add_argument("--use-example-points", action="store_true", default=False, help="Use the precomputed homography")
     args = parser.parse_args()
     return args
 
-def compute_homography(image_fname=REF_IMAGE_FNAME, use_example_points=True):
+def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAGE_FNAME, use_example_points=True):
     """
     This interfaces with the user to get the relation between the room and the image
 
@@ -43,8 +46,11 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, use_example_points=True):
     # todo visualize both the image and the blank canvas
     f, (ax1, ax2) = plt.subplots(1, 2)
     # note that matplotlib only accepts PIL images natively
+    pdb.set_trace()
     reference_image = Image.open(image_fname)
+    overhead_image = Image.open(overhead_fname)
     ax1.imshow(reference_image)
+    ax2.imshow(overhead_image)
     plt.title("click 4 coresponding points in each image, by starting with the left one and alternating")
     # get the clicked points
     #HACK TEMP
@@ -115,10 +121,10 @@ def main():
     ## mark the corespondences between the refrence image and the canvas
     ## visualize the results 
     args = parse_args()
-    homography = compute_homography()
+    homography = compute_homography(args.refrence_image, args.overhead_image, args.use_example_points)
     #homography = np.zeros((3,3))
     frames = load_jsons(args.json_folder)
-    plot_points(frames, homography)
+    plot_points(frames, homography, args.refrence_image)
 
 if __name__ == "__main__":
     parse_args()
