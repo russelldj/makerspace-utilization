@@ -27,7 +27,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAGE_FNAME, use_example_points=True):
+def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAGE_FNAME, use_example_homography=True):
     """
     This interfaces with the user to get the relation between the room and the image
 
@@ -43,6 +43,11 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAG
     homograpy : np.array
         the matrix representing the transformation from image-space to floor-space
     """
+    if use_example_homography:
+        homography =np.array([[-7.37894113e-01, -4.29057777e-01,  2.12304130e+02],
+                              [ 5.98959797e-02, -3.74192101e+00,  1.25389015e+03],
+ [ 2.07156462e-04, -4.45730030e-03,  1.00000000e+00]])
+        return homography
     # todo visualize both the image and the blank canvas
     f, (ax1, ax2) = plt.subplots(1, 2)
     # note that matplotlib only accepts PIL images natively
@@ -54,10 +59,10 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAG
     plt.title("click 4 coresponding points in each image, by starting with the left one and alternating")
     # get the clicked points
     #HACK TEMP
-    if use_example_points:
-        points = [(176.05693572002065, 1052.2532612289237), (0.03076559769517817, 0.00971235068656276), (850.3647806168233, 717.0943324044772), (0.016218769187172688, 0.9716444014438284), (1903.721414065083, 776.9441411231285), (0.9638407405658151, 0.9288505191083987), (1907.711401312993, 1020.333363245643), (0.8744816511594959, 0.4283481561418524)]
-    else:
-        points = plt.ginput(8, timeout=-1, show_clicks=True)
+    #if use_example_points:
+    #    points = [(176.05693572002065, 1052.2532612289237), (0.03076559769517817, 0.00971235068656276), (850.3647806168233, 717.0943324044772), (0.016218769187172688, 0.9716444014438284), (1903.721414065083, 776.9441411231285), (0.9638407405658151, 0.9288505191083987), (1907.711401312993, 1020.333363245643), (0.8744816511594959, 0.4283481561418524)]
+    #else:
+    points = plt.ginput(8, timeout=-1, show_clicks=True)
 
     #close all the plots
     plt.close()
@@ -122,6 +127,7 @@ def main():
     ## visualize the results 
     args = parse_args()
     homography = compute_homography(args.refrence_image, args.overhead_image, args.use_example_points)
+    print(homography)
     #homography = np.zeros((3,3))
     frames = load_jsons(args.json_folder)
     plot_points(frames, homography, args.refrence_image)
