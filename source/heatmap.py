@@ -11,11 +11,16 @@ from utils import openpose_loader
 from PIL import Image
 
 
+import KeypointCapture
+import KeypointVisualization
+
+
 """
 This script should take in the json results of running openpose (TODO link to openpose) and a refrence frame and and output a heatmap or scatter plot in floor space.
 """
 JSON_FOLDER="data/Makerspace_test/jsons"
 REF_IMAGE_FNAME = "data/Makerspace_test/room.png"
+REF_VIDEO_FNAME = "data/Makerspace_test/first_makerspace.avi"
 OVERHEAD_IMAGE_FNAME = "data/Makerspace_test/Makerspace.PNG"
 
 def parse_args():
@@ -26,6 +31,12 @@ def parse_args():
     parser.add_argument("--use-example-points", action="store_true", default=False, help="Use the precomputed homography")
     args = parser.parse_args()
     return args
+
+def visualize(foldername=""):
+    capture = KeypointCapture.Read2DJsonPath(foldername, "", "")
+    visualizer = KeypointVisualization.KeypointVisualization()
+    visualizer.WritePointsToVideo(capture, "first_makerspace_vid.avi", REF_VIDEO_FNAME)
+
 
 def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAGE_FNAME, use_example_homography=True):
     """
@@ -51,7 +62,6 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAG
     # todo visualize both the image and the blank canvas
     f, (ax1, ax2) = plt.subplots(1, 2)
     # note that matplotlib only accepts PIL images natively
-    pdb.set_trace()
     reference_image = Image.open(image_fname)
     overhead_image = Image.open(overhead_fname)
     ax1.imshow(reference_image)
@@ -69,6 +79,7 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAG
     #pdb.set_trace()
     source_pts = np.asarray(itemgetter(0, 2, 4, 6)(points))
     dest_pts   = np.asarray(itemgetter(1, 3, 5, 7)(points))
+    print("source points {}, dest points {} ".format(source_pts, dest_pts))
     homography, status = cv2.findHomography(source_pts, dest_pts)
     return homography
 
@@ -97,17 +108,21 @@ def load_jsons(json_folder):
             frames.append(simplified_people)
     return frames
 
-def plot_points(frames, homography, ref_image_fname=REF_IMAGE_FNAME):
+def plot_points(frames, homography, ref_image_fname=REF_IMAGE_FNAME, overhead_image_fname=OVERHEAD_IMAGE_FNAME):
     f, (ax1, ax2) = plt.subplots(1, 2)
-    im = Image.open(ref_image_fname)
-    ax1.imshow(im)
+    ref_im = Image.open(ref_image_fname)
+    overhead_im = Image.open(overhead_image_fname)
+    ax1.imshow(ref_im)
+    ax2.imshow(overhead_im)
     for frame in frames:
         for person in frame:
             #HACK selecting the right heel as the point we care about, this should be made more inteligent
             H = person["RHeel"]
             if H.conf == 0: # this means it wasn't actually detected so we shouldn't plot it
                 continue # go to the next itteration of the loop
-            ax1.scatter([H.x], [H.y]) # plot on the image just for visualization
+            #print([H.x], [H.y])
+            SCALE=1.0
+            ax1.scatter([H.x * SCALE], [H.y * SCALE]) # plot on the image just for visualization
             # convert to homogenous coordinates
             homogenous = np.asarray([[H.x], [H.y], [1.0]])# check that it's really x, y
             # this is a hack, I'm still unsure why the -1 needs to be there to get expected results
@@ -126,6 +141,7 @@ def main():
     ## mark the corespondences between the refrence image and the canvas
     ## visualize the results 
     args = parse_args()
+    visualize(args.json_folder)
     homography = compute_homography(args.refrence_image, args.overhead_image, args.use_example_points)
     print(homography)
     #homography = np.zeros((3,3))
