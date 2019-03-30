@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import argparse
 import pdb
 import cv2
@@ -18,17 +19,17 @@ import KeypointVisualization
 """
 This script should take in the json results of running openpose (TODO link to openpose) and a refrence frame and and output a heatmap or scatter plot in floor space.
 """
-JSON_FOLDER="data/Makerspace_test/jsons"
-REF_IMAGE_FNAME = "data/Makerspace_test/room.png"
-REF_VIDEO_FNAME = "data/Makerspace_test/first_makerspace.avi"
-OVERHEAD_IMAGE_FNAME = "data/Makerspace_test/Makerspace.PNG"
+JSON_FOLDER="data/Makerspace_mentors/jsons"
+REF_IMAGE_FNAME = "data/Makerspace_mentors/ref_img.png"
+REF_VIDEO_FNAME = "data/Makerspace_mentors/ref_video.avi"
+OVERHEAD_IMAGE_FNAME = "data/Makerspace_mentors/Makerspace.PNG"
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--json-folder", help="The path to the folder of openpose jsons", default=JSON_FOLDER)
     parser.add_argument("--refrence-image", help="An image of the space", default=REF_IMAGE_FNAME)
     parser.add_argument("--overhead-image", help="The floorplan of your space", default=OVERHEAD_IMAGE_FNAME)
-    parser.add_argument("--use-example-points", action="store_true", default=False, help="Use the precomputed homography")
+    parser.add_argument("--choose-homography-points", action="store_true", default=False, help="Select new points to compute the homography")
     args = parser.parse_args()
     return args
 
@@ -83,6 +84,7 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAG
     homography, status = cv2.findHomography(source_pts, dest_pts)
     return homography
 
+
 def load_jsons(json_folder):
     """
     reads a folder of openpose output files into a list
@@ -99,7 +101,7 @@ def load_jsons(json_folder):
     """
     if json_folder[-1] != "/":
         json_folder += "/"
-    files = glob.glob("{}*".format(json_folder))
+    files = sorted(glob.glob("{}*".format(json_folder)))
     frames = list()
     for file_ in files:
         with open(file_, 'r') as json_file:
@@ -108,13 +110,47 @@ def load_jsons(json_folder):
             frames.append(simplified_people)
     return frames
 
-def plot_points(frames, homography, ref_image_fname=REF_IMAGE_FNAME, overhead_image_fname=OVERHEAD_IMAGE_FNAME):
+
+def gaussian(x_mean, y_mean, x_size, y_size, sigma=10 ):
+    """
+    x_mean, y_mean are the centers of the gaussian
+    x_size, y_size are the sizes of space this is being plotted on
+    sigma is the standard diviation of the gaussian
+
+    Taken from https://www.w3resource.com/python-exercises/numpy/python-numpy-exercise-79.php
+    """
+    x, y = np.meshgrid(np.linspace(0, x_size, x_size), np.linspace(0, y_size, y_size))
+    x -= x_mean
+    y -= y_mean
+    d = np.sqrt(x*x+y*y)
+    mu = 0
+    g = np.exp(-( (d-mu)**2 / ( 2.0 * sigma**2 ) ) )
+    return g
+
+
+def plot_points(frames, homography, ref_image_fname=REF_IMAGE_FNAME, overhead_image_fname=OVERHEAD_IMAGE_FNAME, use_video=True, ref_video_fname=REF_VIDEO_FNAME, colormap="Blues"):
+    #cmap = matplotlib.cm.ScalarMappable(cmap=colormap) # an object which turns scalars to colors
+
     f, (ax1, ax2) = plt.subplots(1, 2)
-    ref_im = Image.open(ref_image_fname)
+    pdb.set_trace()
+    if use_video:
+        video = cv2.VideoCapture(ref_video_fname)
+        _, ref_im = video.read()
+        ref_im = cv2.cvtColor(ref_im, cv2.COLOR_BGR2RGB)
+    else:
+        ref_im = Image.open(ref_image_fname)
     overhead_im = Image.open(overhead_image_fname)
     ax1.imshow(ref_im)
-    ax2.imshow(overhead_im)
+    #ax2.imshow(overhead_im)
+
+    ref_heatmap = np.zeros_like(ref_im, dtype=np.float64)[:,:,0] # create an accumulator for the heatmap that is one layer but the same shape as the image
+    overhead_heatmap = np.zeros_like(overhead_im, dtype=np.float64) # create an accumulator for the heatmap
+    ref_heatmap_y, ref_heatmap_x = ref_heatmap.shape
+    overhead_heatmap_y, overhead_heatmap_x, _ = overhead_heatmap.shape
+
     for frame in frames:
+        _, ref_im = video.read()
+        ref_im = cv2.cvtColor(ref_im, cv2.COLOR_BGR2RGB)
         for person in frame:
             #HACK selecting the right heel as the point we care about, this should be made more inteligent
             H = person["RHeel"]
@@ -123,17 +159,36 @@ def plot_points(frames, homography, ref_image_fname=REF_IMAGE_FNAME, overhead_im
             #print([H.x], [H.y])
             SCALE=1.0
             ax1.scatter([H.x * SCALE], [H.y * SCALE]) # plot on the image just for visualization
+
+            ref_heatmap += 20 * gaussian(H.x * SCALE, H.y * SCALE, ref_heatmap_x, ref_heatmap_y) # increment the heatmap
             # convert to homogenous coordinates
             homogenous = np.asarray([[H.x], [H.y], [1.0]])# check that it's really x, y
             # this is a hack, I'm still unsure why the -1 needs to be there to get expected results
             transformed = -1.0 * np.dot(homography, homogenous)
+
+            gaussian_addition = gaussian(transformed[0], transformed[1], overhead_heatmap_x, overhead_heatmap_y)
+
+            print(sum(sum(gaussian_addition)))
+
+            overhead_heatmap[:,:,0] = overhead_heatmap[:,:,0] + gaussian_addition # increment the heatmap
+
+            print(sum(sum(overhead_heatmap)))
+            vis = overhead_im + overhead_heatmap
+            cv2.imwrite("heatmap.png", overhead_heatmap[:,:,3])
+            #cv2.imshow("", overhead_heatmap[:,:,3])
+            cv2.waitKey(1)
+            cv2.imwrite("overhead.png", np.array(overhead_im)[:,:,3])
+            ax2.imshow(overhead_im) # add the heatmap
+            #print("showed {}, one pixel is {}".format(colormap, plasma_heatmap[100, 100, :]))
             #plot the transformed ones
-            ax2.scatter([transformed[0]], [transformed[1]])
+            #ax2.scatter([transformed[0]], [transformed[1]])
+            plt.pause(0.005)
     ax1.set_title("foot locations overlayed on first image")
     ax2.set_title("foot locations in the room space")
     plt.show()
     plt.waitforbuttonpress()
 
+    
 def main():
     # there are going to be a few steps
     ## load the jsons into a usable format
@@ -141,8 +196,8 @@ def main():
     ## mark the corespondences between the refrence image and the canvas
     ## visualize the results 
     args = parse_args()
-    visualize(args.json_folder)
-    homography = compute_homography(args.refrence_image, args.overhead_image, args.use_example_points)
+    #visualize(args.json_folder)
+    homography = compute_homography(args.refrence_image, args.overhead_image, not args.choose_homography_points)
     print(homography)
     #homography = np.zeros((3,3))
     frames = load_jsons(args.json_folder)
