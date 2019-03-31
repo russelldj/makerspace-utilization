@@ -66,13 +66,13 @@ def compute_homography(image_fname=REF_IMAGE_FNAME, overhead_fname=OVERHEAD_IMAG
         #                       [-1.75840535e-02,  1.83333211e+00,  5.62610817e+00],
         #                       [-3.19357093e-05, -3.98188137e-05, 1.00000000e+00]])
 
-        homography = np.array([[-7.52717829e-01, -5.41937044e-01,  1.80284909e+02],           
-                             [-3.64769537e-01, -5.09755179e+00,  1.63437459e+03],                    
-                             [ 8.44335295e-05, -4.62214990e-03,  1.00000000e+00]]) # new floor plan
+        #homography = np.array([[-7.52717829e-01, -5.41937044e-01,  1.80284909e+02],           
+        #                     [-3.64769537e-01, -5.09755179e+00,  1.63437459e+03],                    
+        #                     [ 8.44335295e-05, -4.62214990e-03,  1.00000000e+00]]) # new floor plan
 
-        #homography = np.array([[-1.83275276e+00, -1.52041828e-01,  6.00408440e+01],
-        #               [-1.02265870e+00, -8.82312556e+00,  2.94339777e+03],
-        #               [ 1.66278357e-05, -6.63657266e-03,  1.00000000e+00]]) # 8 points
+        homography = np.array([[-1.83275276e+00, -1.52041828e-01,  6.00408440e+01],
+                       [-1.02265870e+00, -8.82312556e+00,  2.94339777e+03],
+                       [ 1.66278357e-05, -6.63657266e-03,  1.00000000e+00]]) # 8 points
 
         
         reference_image = Image.open(image_fname)
@@ -189,7 +189,8 @@ def plot_points(frames, homography, ref_image_fname=REF_IMAGE_FNAME, overhead_im
             # this is a hack, I'm still unsure why the -1 needs to be there to get expected results
             # TODO see if removing this negative -1 did something good
             #transformed = -1.0 * np.dot(homography, homogenous)
-            transformed = -1.0 * np.dot(homography, homogenous)
+            transformed = np.dot(homography, homogenous)
+            transformed /= transformed[2] # normalize
 
             gaussian_addition = gaussian(transformed[0], transformed[1], overhead_heatmap_x, overhead_heatmap_y)
 
