@@ -402,6 +402,7 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
 
     i = 0
     ret, frame = cap.read()
+    stop_frame = 200
     while (ret):
         all_keypoints = get_all_keypoints(frame, opWrapper)
         for person in all_keypoints:
@@ -434,7 +435,7 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
                                                          :, 2] + gaussian_addition
         i += 1
         ret, frame = cap.read()
-        if i > 200:
+        if i > stop_frame:
             break
     cap.release()
 
