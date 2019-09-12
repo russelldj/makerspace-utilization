@@ -8,6 +8,7 @@ import glob
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from sys import platform
 from numpy.random import rand
@@ -400,10 +401,15 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
     ref_heatmap_y, ref_heatmap_x = ref_heatmap.shape
     overhead_heatmap_y, overhead_heatmap_x, _ = overhead_heatmap.shape
 
-    i = 0
     ret, frame = cap.read()
-    stop_frame = 200
-    while (ret):
+    start = time.time()
+    time_frame_mins = 15
+    while (True):
+        # Skip to next loop if frame was not grabbed successfully
+        if not ret: 
+            print("Frame not grabbed correctly, skipping to next frame.")
+            time.sleep(0.1)
+            continue
         all_keypoints = get_all_keypoints(frame, opWrapper)
         for person in all_keypoints:
             # HACK selecting the right heel as the point we care about, this
@@ -412,6 +418,7 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
             # Since we're not pulling from JSON, pulling straight from H indices
             # Assuming H[0] is x, H[1] is y, H[2] is conf
             if H[2] == 0:  # this means it wasn't actually detected so we shouldn't plot it
+                # TODO: Possibly have some threshold > 0
                 continue  # go to the next itteration of the loop
             else:
                 print("Plotting data on frame %s." % i)
@@ -433,10 +440,15 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
             # increment the heatmap
             overhead_heatmap[:, :, 2] = overhead_heatmap[:,
                                                          :, 2] + gaussian_addition
-        i += 1
         ret, frame = cap.read()
-        if i > stop_frame:
-            break
+        mins_elapsed = int((time.time() - start) / 60.)
+        if (mins_elapsed % time_frame_mins):
+            # Time frame has elapsed
+            # perform operations outlined below (skip writing to disk?)
+            # Export image to web socket or something
+            # Clear heatmap variables and start over
+            pass
+
     cap.release()
 
     # normalize it to [1, 128] note that this counts recent points more heavily
