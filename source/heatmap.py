@@ -326,6 +326,8 @@ def init_openpose():
     """
     params = dict()
     params["model_folder"] = "%s/openpose/models/" % home
+    # Can up this res if less FPS is required
+    params["net_resolution"] = "128x96"
     # We don't need these for our current RHeel approach
     params["face"] = False
     params["hand"] = False
@@ -380,7 +382,8 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
     """
     opWrapper = init_openpose()
     # Open VideoCapture on /dev/video0
-    cap = cv2.VideoCapture(0)
+    print("Waiting for USB camera to capture on...")
+    cap = cv2.VideoCapture(1) # The jetson camera is on 0
     # Default is 640 x 480, bumping up to 1280 x 720
     cap.set(3, 1280)
     cap.set(4, 720)
@@ -401,14 +404,17 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
     ref_heatmap_y, ref_heatmap_x = ref_heatmap.shape
     overhead_heatmap_y, overhead_heatmap_x, _ = overhead_heatmap.shape
 
+    print("Waiting for camera frame capture...")
     ret, frame = cap.read()
     start = time.time()
-    time_frame_mins = 15
+    time_frame_mins = 5
+    i = 0
+    print("Beginning heatmap accumulation.")
     while (True):
         # Skip to next loop if frame was not grabbed successfully
         if not ret: 
             print("Frame not grabbed correctly, skipping to next frame.")
-            time.sleep(0.1)
+            time.sleep(0.5)
             continue
         all_keypoints = get_all_keypoints(frame, opWrapper)
         for person in all_keypoints:
@@ -440,31 +446,23 @@ def generate_realtime_heatmap(homography, ref_image_fname=REF_IMAGE_FNAME,
             # increment the heatmap
             overhead_heatmap[:, :, 2] = overhead_heatmap[:,
                                                          :, 2] + gaussian_addition
+        print("Frame %s processed." % i)
         ret, frame = cap.read()
         mins_elapsed = int((time.time() - start) / 60.)
+        i += 1
         if (mins_elapsed % time_frame_mins):
+            overhead_heatmap /= np.amax(overhead_heatmap) / 128.0
+            print("The max of the heatmap is {}".format(np.amax(overhead_heatmap)))
+            vis = overhead_im / 2.0 + overhead_heatmap.astype(np.uint8)
+            cv2.imwrite("%s/makerspace-utilization/data/visualization.png" % home, vis)
+            overhead_heatmap = np.zeros_like(overhead_im, dtype=np.float64)
+            break
             # Time frame has elapsed
             # perform operations outlined below (skip writing to disk?)
             # Export image to web socket or something
             # Clear heatmap variables and start over
-            pass
 
     cap.release()
-
-    # normalize it to [1, 128] note that this counts recent points more heavily
-    overhead_heatmap /= np.amax(overhead_heatmap) / 128.0
-    print("The max of the heatmap is {}".format(np.amax(overhead_heatmap)))
-    vis = overhead_im / 2.0 + overhead_heatmap.astype(np.uint8)
-    cv2.imwrite("visualization.png", vis)
-    # add the heatmap, must be unit8 or it will think it's [0,1]
-    ax2.imshow(vis.astype(np.uint8))
-    cv2.imshow("", vis.astype(np.uint8))
-    plt.pause(0.005)
-    ax1.set_title("foot locations overlayed on first image")
-    ax2.set_title("foot locations in the room space")
-    plt.show()
-    plt.close()
-
 
 def main():
     # there are going to be a few steps
