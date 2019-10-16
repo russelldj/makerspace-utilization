@@ -1,10 +1,15 @@
+![Visualization](data/visualizations/people.gif)
+![Visualization](data/visualizations/website.gif)
 # Overview
-This project seeks to provide a way to understand how spaces are used, with an initial focus on makerspaces
-![An example output](data/room_utilization.png?raw=true "Title")
-![Example pose detections](data/visualizations/downsample_pose_detection.gif)
 
+Clarkson University recently installed a new makerspace to facilitate student, faculty, and staff projects. Given that it was a new space, and various decisions about organization, open hours, and equipment purchasing had to be made, we sought to provide administrators with quantitative data about utilization patterns. The system provides a heatmap visualization demonstrating the frequency of utilization over a period of time. This will be presented in an easy-to-use website, to make the data easily accessible. This work won the second Clarkson University President's Challenge, for a grand prize of $7,000. Additional content from the contest can be found here: [Slides](data/slides/Presentation.pdf), [Video](https://youtu.be/c_1fbtPzoIA), [Paper](data/Report.pdf).
 # Approach
-Recent research on person detection and pose estimation allows us to get robust measurments of where people are in video captured with low-cost cameras. From this, we should be able to generate useful reports on which areas are busiest and when, how do groups interact, and other similar metrics. 
+We process data from a mounted camera on an Nvidia Jetson, using [OpenPose](https://github.com/CMU-Perceptual-Computing-Lab/openpose) to extract people's locations, and use a [homography](https://ags.cs.uni-kl.de/fileadmin/inf_ags/3dcv-ws11-12/3DCV_WS11-12_lec04.pdf) to map this data into an overhead view. From this, we generate intuitive visualizations on how the space is used over a specific interval.
+# TODO
+We are currently working on setting this up so it runs in real time and publishes to a publicly-available website. Additionally, we would like to look at capturing skeletons in 3D, rather than 2D, likely with the addition of multiple cameras. We welcome contributions.
+![An example output](data/visualizations/future.png?raw=true "Title")
+# Contributors
+David Russell, Damon Gwinn, Nikolas Lamb, and Adam Romlein.
 # Quickstart
 Run the ./example.sh script
 # Install
